@@ -5,3 +5,4 @@ flake8==2.4.1
 tox==2.1.1
 coverage==4.0
 pytest==2.9.2
+gql==0.1.0

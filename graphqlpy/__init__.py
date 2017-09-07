@@ -3,7 +3,7 @@ __version__ = '0.0.1'
 
 def params(value):
     if isinstance(value, dict):
-        return "{" + ", ".join(["{}: {}".format(k, params(v)) for k, v in value.items()]) + "}"
+        return "{" + ", ".join(["{}: {}".format(k, params(v)) for k, v in sorted(value.items())]) + "}"
     elif isinstance(value, list):
         return "[" + ", ".join(["{}".format(params(v)) for v in value]) + "]"
     elif isinstance(value, bool):
@@ -42,12 +42,15 @@ def field(*args, **kwargs):
     if not kwargs:
         return result + name
 
-    result += "{}({})".format(name, ",".join(["{}: {}".format(k, v) for k, v in kwargs.items()]))
+    result += "{}({})".format(
+        name,
+        ", ".join(["{}: {}".format(k, params(v)) for k, v in sorted(kwargs.items())])
+    )
 
     return result
 
 
-def query(*args):
+def component(*args):
     args = tuple(args)
 
     results = []
@@ -55,16 +58,29 @@ def query(*args):
         if isinstance(arg, str):
             results.append(arg)
         elif isinstance(arg, dict):
-            for k, v in arg.items():
+            for k, v in sorted(arg.items()):
                 results.append(k)
                 results.append("{")
                 if isinstance(v, str):
-                    results.append(v)
+                    results.append(component(v))
                 else:
-                    results.append(query(*v))
+                    results.append(component(*v))
                 results.append("}")
         elif isinstance(arg, tuple):
             for v in arg:
-                results.append(v)
+                results.append(component(v))
 
-    return " ".join(results)
+    results = " ".join(results)
+
+    return results
+
+
+def query(*args):
+    return "query {{ {} }}".format(component(*args))
+
+
+def mutation(*args, alias=None):
+    if alias:
+        return "{}: mutation {{ {} }}".format(alias, component(*args))
+
+    return "mutation {{ {} }}".format(component(*args))

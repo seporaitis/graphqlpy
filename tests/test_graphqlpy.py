@@ -1,6 +1,8 @@
 import pytest
+from gql import gql
 
-from graphqlpy import field, params, query
+from graphqlpy import field, mutation, params, query
+
 
 class TestParams(object):
 
@@ -28,9 +30,11 @@ class TestParams(object):
         })
 
         expected = (
-            '{int: 1, str: "str", bool: true, list: [1, true, "str"], dict: {'
-            'list: ["one", "two", 3], int: 1}}'
+            '{bool: true, dict: {int: 1, list: ["one", "two", 3]}, '
+            'int: 1, list: [1, true, "str"], str: "str"}'
         )
+
+        assert actual == expected
 
     def test_unknown(self):
         class Foo():
@@ -75,7 +79,9 @@ class TestQuery(object):
             )}
         )
 
-        expected = "me { id firstName lastName birthday { month day } friends { name } }"
+        gql(actual)
+
+        expected = "query { me { id firstName lastName birthday { month day } friends { name } } }"
 
         assert actual == expected
 
@@ -91,6 +97,68 @@ class TestQuery(object):
             )}
         )
 
-        expected = "user(id: 4) { firstName lastName birthday { month day } }"
+        gql(actual)
+
+        expected = "query { user(id: 4) { firstName lastName birthday { month day } } }"
+
+        assert actual == expected
+
+    def test_field_with_arguments(self):
+        actual = query(
+            {field("user", id=4): (
+                'id',
+                'name',
+                field("profilePic", width=100, height=50),
+            )}
+        )
+
+        gql(actual)
+
+        expected = "query { user(id: 4) { id name profilePic(height: 50, width: 100) } }"
+
+        assert actual == expected
+
+    def test_field_with_alias(self):
+        actual = query(
+            {field("user", id=4): (
+                'id',
+                'name',
+                field("smallPic", "profilePic", size=64),
+                field("bigPic", "profilePic", size=1024),
+            )}
+        )
+
+        gql(actual)
+
+        expected = "query { user(id: 4) { id name smallPic: profilePic(size: 64) bigPic: profilePic(size: 1024) } }"
+
+        assert actual == expected
+
+
+class TestMutation(object):
+
+    def test_mutation(self):
+        actual = mutation(
+            {field("user", id=4, firstName="John", lastName="Doe"): (
+                "ok",
+            )}
+        )
+
+        gql(actual)
+
+        expected = 'mutation { user(firstName: "John", id: 4, lastName: "Doe") { ok } }'
+
+        assert actual == expected
+
+    def test_mutation_no_tuple(self):
+        actual = mutation(
+            {field("user", id=4, firstName="John", lastName="Doe"): (
+                "ok"
+            )}
+        )
+
+        gql(actual)
+
+        expected = 'mutation { user(firstName: "John", id: 4, lastName: "Doe") { ok } }'
 
         assert actual == expected
